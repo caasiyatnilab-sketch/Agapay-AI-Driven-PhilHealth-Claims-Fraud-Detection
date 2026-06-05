@@ -1,12 +1,33 @@
 import { NextResponse } from 'next/server';
 const { ethers } = require('ethers');
 const { getDb } = require('../../../../../lib/db');
+const { verifyAuth } = require('../../../../../lib/auth');
 
 export async function GET(req, { params }) {
   try {
+    const user = verifyAuth(req);
     const { id } = params;
+    const { Claim } = await getDb();
     
-    // We try to get it from chain first
+    const dbClaim = await Claim.findByPk(id);
+
+    // Authorization check
+    if (dbClaim) {
+      if (user.role === 'PATIENT' && dbClaim.patientId !== user.id) {
+        return NextResponse.json({ error: 'Unauthorized access' }, { status: 403 });
+      }
+      if (user.role === 'HOSPITAL' && dbClaim.hospitalId !== user.hospitalId) {
+        return NextResponse.json({ error: 'Unauthorized access' }, { status: 403 });
+      }
+    } else {
+        // If it's not in DB, we should still be careful.
+        // For now, if it's not in DB and user is not AUDITOR, we might want to restrict.
+        if (user.role !== 'AUDITOR') {
+             return NextResponse.json({ error: 'Claim not found' }, { status: 404 });
+        }
+    }
+
+    // We try to get it from chain
     const provider = new ethers.JsonRpcProvider(process.env.RPC_URL || 'http://127.0.0.1:8545');
     const abi = ["function getClaim(uint _id) public view returns (tuple(uint id, uint amount, address hospital, address patient, bool approved, bool paid, uint timestamp))"];
     const contract = new ethers.Contract(process.env.CONTRACT_ADDRESS, abi, provider);
@@ -29,9 +50,6 @@ export async function GET(req, { params }) {
       console.warn('Chain read failed. Proceeding to DB check.', chainErr.message);
     }
 
-    const { Claim } = await getDb();
-    const dbClaim = await Claim.findByPk(id);
-
     if (!dbClaim && !onChainData) {
       return NextResponse.json({ error: 'Claim not found anywhere.' }, { status: 404 });
     }
@@ -44,7 +62,7 @@ export async function GET(req, { params }) {
        }
     });
   } catch (error) {
-    console.error('Explorer error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const status = (error.message.includes('token') || error.message.includes('authentication')) ? 401 : 500;
+    return NextResponse.json({ error: error.message }, { status });
   }
 }
