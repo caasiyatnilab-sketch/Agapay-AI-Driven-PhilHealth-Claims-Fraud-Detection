@@ -1,6 +1,10 @@
 {
-  "name": "Agapay PhilHealth Platform",
-  "description": "AI-Driven Blockchain Platform for PhilHealth Claims and Fraud Detection",
+  "name": "Agapay PhilHealth Claims Fraud Detection",
+  "description": "Professional prototype for AI-assisted PhilHealth claims fraud screening with role-based workflows, Flask ML scoring, SQLite persistence, and optional Hardhat blockchain audit trails.",
   "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_API",
+    "MAJOR_CAPABILITY_MACHINE_LEARNING",
+    "MAJOR_CAPABILITY_BLOCKCHAIN_AUDIT_TRAIL"
+  ]
 }

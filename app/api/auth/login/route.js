@@ -2,30 +2,29 @@ import { NextResponse } from 'next/server';
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { getDb } = require('../../../../lib/db');
+const { normalizeEmail } = require('../../../../lib/claimRules');
 
 export async function POST(req) {
   try {
-    const { email, password } = await req.json();
-    const { User, Hospital } = await getDb();
+    const body = await req.json();
+    const email = normalizeEmail(body.email);
+    const password = String(body.password || '');
+    if (!email || !password) throw new Error('Email and password are required.');
 
-    const user = await User.findOne({ 
+    const { User, Hospital } = await getDb();
+    const user = await User.findOne({
       where: { email },
       include: [{ model: Hospital, as: 'hospital' }]
     });
 
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
-
-    const isValid = bcrypt.compareSync(password, user.passwordHash);
-    if (!isValid) {
+    if (!user || !bcrypt.compareSync(password, user.passwordHash)) {
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }
 
     const token = jwt.sign(
       { id: user.id, role: user.role, hospitalId: user.hospitalId },
       process.env.JWT_SECRET || 'fallback-secret',
-      { expiresIn: '1d' }
+      { expiresIn: '1d', issuer: 'agapay' }
     );
 
     return NextResponse.json({
@@ -43,6 +42,6 @@ export async function POST(req) {
     });
   } catch (error) {
     console.error('Login API Error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error.message }, { status: 400 });
   }
 }
