@@ -3,15 +3,19 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { getDb } = require('../../../../lib/db');
 const { normalizeEmail } = require('../../../../lib/claimRules');
+const { assertRateLimit, getErrorStatus, getJwtSecret } = require('../../../../lib/security');
+const { writeAuditLog } = require('../../../../lib/audit');
 
 export async function POST(req) {
   try {
+    assertRateLimit(req, { key: 'auth:login', limit: 10, windowMs: 60_000 });
     const body = await req.json();
     const email = normalizeEmail(body.email);
     const password = String(body.password || '');
     if (!email || !password) throw new Error('Email and password are required.');
 
-    const { User, Hospital } = await getDb();
+    const db = await getDb();
+    const { User, Hospital } = db;
     const user = await User.findOne({
       where: { email },
       include: [{ model: Hospital, as: 'hospital' }]
@@ -23,9 +27,11 @@ export async function POST(req) {
 
     const token = jwt.sign(
       { id: user.id, role: user.role, hospitalId: user.hospitalId },
-      process.env.JWT_SECRET || 'fallback-secret',
+      getJwtSecret(),
       { expiresIn: '1d', issuer: 'agapay' }
     );
+
+    await writeAuditLog(db, { actorUserId: user.id, action: 'AUTH_LOGIN', entityType: 'User', entityId: user.id, req });
 
     return NextResponse.json({
       message: 'Login successful',
@@ -42,6 +48,6 @@ export async function POST(req) {
     });
   } catch (error) {
     console.error('Login API Error:', error);
-    return NextResponse.json({ error: error.message }, { status: 400 });
+    return NextResponse.json({ error: error.message }, { status: getErrorStatus(error, 400) });
   }
 }

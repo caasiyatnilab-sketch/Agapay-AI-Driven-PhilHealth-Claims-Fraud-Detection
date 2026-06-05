@@ -50,6 +50,7 @@ export default function HospitalDashboard() {
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Patient (PIN)</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Risk</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
             </tr>
@@ -61,6 +62,11 @@ export default function HospitalDashboard() {
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{claim.patient.name} <br/><span className="text-xs text-gray-500">{claim.patient.philhealthId}</span></td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{format(new Date(claim.createdAt), 'MMM d, yyyy')}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">₱{claim.amountClaimed.toLocaleString()}</td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${claim.riskLevel === 'HIGH' ? 'bg-red-100 text-red-800' : claim.riskLevel === 'MEDIUM' ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'}`}>
+                    {claim.riskLevel || 'LOW'} · {((claim.riskScore || 0) * 100).toFixed(0)}%
+                  </span>
+                </td>
                  <td className="px-6 py-4 whitespace-nowrap">
                   <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
                     ${claim.status === 'APPROVED' ? 'bg-green-100 text-green-800' : 
@@ -93,6 +99,7 @@ export default function HospitalDashboard() {
                 <p><span className="font-semibold w-24 inline-block">ICD-10:</span> {selectedClaim.icd10Code}</p>
                 <p><span className="font-semibold w-24 inline-block">Amount:</span> ₱{selectedClaim.amountClaimed.toLocaleString()}</p>
                 <p><span className="font-semibold w-24 inline-block">Days Admitted:</span> {selectedClaim.daysAdmitted}</p>
+                <p><span className="font-semibold w-24 inline-block">Risk:</span> {selectedClaim.riskLevel || 'LOW'} ({((selectedClaim.riskScore || 0) * 100).toFixed(1)}%)</p>
              </div>
              <div className="mb-4">
                  <label className="block text-sm font-medium text-gray-700 mb-1">Remarks / Notes</label>

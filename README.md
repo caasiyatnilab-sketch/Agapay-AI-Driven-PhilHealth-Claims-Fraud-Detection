@@ -27,10 +27,11 @@ Agapay is a professional, full-stack prototype for screening Philippine PhilHeal
 | Claims | Submission, role-filtered listing, single-claim access control, and timeline history. |
 | Fraud screening | ML scoring plus rule-based fallback for high amounts, short stays, long admissions, duplicate claims, and recent claim volume. |
 | Workflow controls | Guardrails for valid state transitions: pending → approved/rejected, approved → paid. |
-| Auditor analytics | Auditor-only fraud summary endpoint and top-risk hospital cards. |
+| Auditor analytics | Auditor-only fraud summary endpoint, audit logs, and top-risk hospital cards. |
 | Reporting | CSV export with escaped fields and patient/hospital/risk context. |
 | Blockchain | Optional local Ethereum/Hardhat claim recording and paid-status marking. |
 | Resilience | Demo continues when ML or blockchain services are unavailable. |
+| Security posture | Rate-limited sensitive endpoints, security headers, protected auditor provisioning, and CI guidance for branch protection. |
 
 ## Tech stack
 
@@ -81,6 +82,7 @@ JWT_SECRET=replace-with-a-strong-secret
 ML_API_URL=http://127.0.0.1:5000
 RPC_URL=http://127.0.0.1:8545
 CONTRACT_ADDRESS=
+ALLOW_AUDITOR_SELF_REGISTER=false
 ```
 
 Generate a strong JWT secret with:
@@ -164,6 +166,8 @@ npm run chain:deploy   # Deploy the claims smart contract
 | `/api/claims/:id/approve-hospital` | PUT | Hospital | Approve or reject pending hospital claims. |
 | `/api/claims/:id/audit` | PUT | Auditor | Approve, reject, or mark approved claims as paid. |
 | `/api/analytics/fraud` | GET | Auditor | Get fraud summary and top-risk hospitals. |
+| `/api/audit-logs` | GET | Auditor | Review security and workflow audit logs. |
+| `/api/health` | GET | Public | Check app, database, ML, and blockchain readiness. |
 | `/api/reports` | GET | Auditor | Download CSV report. |
 | `/api/blockchain/explore` | GET | Public | View local chain events or simulated demo events. |
 
@@ -176,7 +180,7 @@ Before using this with real data, implement and review:
 - PHI/PII minimization, consent, audit logging, and retention controls.
 - Formal model validation, drift monitoring, explainability, and bias review.
 - Role provisioning, MFA, approval queues, and separation of duties.
-- Production-grade observability, rate limiting, backup/restore, and incident response.
+- Production-grade observability, rate limiting, backup/restore, branch protection, required CI checks, and incident response.
 - Blockchain key management and a decision on whether on-chain records should contain only non-sensitive attestations.
 
 ## Development notes
@@ -184,3 +188,4 @@ Before using this with real data, implement and review:
 - Local `database.sqlite`, ML model files, `.env.local`, and dependency folders are intentionally ignored by Git.
 - If the ML service is unavailable, the claim API uses `lib/claimRules.js` for deterministic fallback scoring.
 - If the blockchain node or contract address is unavailable, blockchain writes return simulated transaction hashes to keep demos flowing.
+- Branch protection cannot be enforced by source code alone; use `.github/BRANCH_PROTECTION.md` to enable force-push/deletion protection and required CI checks in GitHub.

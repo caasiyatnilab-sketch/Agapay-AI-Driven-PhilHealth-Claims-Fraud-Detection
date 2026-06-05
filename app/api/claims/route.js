@@ -11,6 +11,8 @@ const {
   toPositiveInteger,
   toPositiveNumber,
 } = require('../../../lib/claimRules');
+const { assertRateLimit, getErrorStatus } = require('../../../lib/security');
+const { writeAuditLog } = require('../../../lib/audit');
 
 const ML_API_URL = process.env.ML_API_URL || process.env.ML_SERVICE_URL || 'http://127.0.0.1:5000';
 
@@ -43,6 +45,7 @@ export async function GET(req) {
 
 export async function POST(req) {
   try {
+    assertRateLimit(req, { key: 'claims:create', limit: 20, windowMs: 60_000 });
     const user = verifyAuth(req);
     if (user.role !== 'PATIENT') throw new Error('Only patients can submit claims');
 
@@ -56,7 +59,8 @@ export async function POST(req) {
     if (!icd10Code || String(icd10Code).trim().length < 2) throw new Error('ICD-10 code is required.');
     if (!caseRateType) throw new Error('Case rate type is required.');
 
-    const { Claim, ClaimHistory, Hospital, Notification } = await getDb();
+    const db = await getDb();
+    const { Claim, ClaimHistory, Hospital, Notification } = db;
     const hospital = await Hospital.findByPk(hospitalId);
     if (!hospital) return NextResponse.json({ error: 'Selected hospital does not exist.' }, { status: 400 });
 
@@ -109,6 +113,15 @@ export async function POST(req) {
       notes: `Claim submitted by patient. Risk source: ${riskSource}. Signals: ${heuristic.signals.join('; ')}`
     });
 
+    await writeAuditLog(db, {
+      actorUserId: user.id,
+      action: 'CLAIM_SUBMITTED',
+      entityType: 'Claim',
+      entityId: claim.id,
+      metadata: { claimRef, riskScore, riskSource, signals: heuristic.signals },
+      req,
+    });
+
     await Notification.bulkCreate([
       {
         userId: user.id,
@@ -129,7 +142,6 @@ export async function POST(req) {
     }, { status: 201 });
   } catch (error) {
     console.error('Claims POST Error:', error);
-    const status = error.message.includes('token') ? 401 : 400;
-    return NextResponse.json({ error: error.message }, { status });
+    return NextResponse.json({ error: error.message }, { status: getErrorStatus(error, 400) });
   }
 }

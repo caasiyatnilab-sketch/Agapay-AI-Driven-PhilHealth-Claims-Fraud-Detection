@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 const { getDb } = require('../../../../../lib/db');
 const { verifyAuth } = require('../../../../../lib/auth');
 const { recordClaimOnChain } = require('../../../../../lib/blockchain');
+const { writeAuditLog } = require('../../../../../lib/audit');
 const { assertTransition, serializeClaim } = require('../../../../../lib/claimRules');
 
 export async function PUT(req, { params }) {
@@ -11,7 +12,8 @@ export async function PUT(req, { params }) {
 
     const { id } = params;
     const { approved, remarks } = await req.json();
-    const { Claim, ClaimHistory, Notification } = await getDb();
+    const db = await getDb();
+    const { Claim, ClaimHistory, Notification } = db;
 
     const claim = await Claim.findByPk(id);
     if (!claim) return NextResponse.json({ error: 'Not found' }, { status: 404 });
@@ -43,6 +45,8 @@ export async function PUT(req, { params }) {
       title: `Claim ${newStatus}`,
       message: `Your claim ${claim.claimRef} was ${newStatus.toLowerCase()} by the hospital.`
     });
+
+    await writeAuditLog(db, { actorUserId: user.id, action: 'HOSPITAL_DECISION', entityType: 'Claim', entityId: claim.id, metadata: { status: newStatus, approved, txHash }, req });
 
     return NextResponse.json({ message: `Claim ${newStatus}`, claim: serializeClaim(claim) });
   } catch (error) {

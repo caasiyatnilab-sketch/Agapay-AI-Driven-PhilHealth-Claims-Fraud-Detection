@@ -2,11 +2,15 @@ const { spawnSync } = require('child_process');
 const { readdirSync, statSync } = require('fs');
 const { join, extname } = require('path');
 
-const TARGETS = ['app/api', 'lib'];
+const TARGETS = ['app/api', 'lib', 'middleware.js'];
 const EXTENSIONS = new Set(['.js', '.jsx']);
 const SKIP_DIRS = new Set(['node_modules', '.next', 'dist', 'build']);
 
 function collectFiles(dir, files = []) {
+  if (!statSync(dir).isDirectory()) {
+    if (EXTENSIONS.has(extname(dir))) files.push(dir);
+    return files;
+  }
   for (const entry of readdirSync(dir)) {
     const fullPath = join(dir, entry);
     const stat = statSync(fullPath);

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 const { getDb } = require('../../../../../lib/db');
 const { verifyAuth } = require('../../../../../lib/auth');
 const { markClaimPaidOnChain } = require('../../../../../lib/blockchain');
+const { writeAuditLog } = require('../../../../../lib/audit');
 const { assertTransition, serializeClaim } = require('../../../../../lib/claimRules');
 
 export async function PUT(req, { params }) {
@@ -12,7 +13,8 @@ export async function PUT(req, { params }) {
     const { id } = params;
     const { status, notes } = await req.json();
     const nextStatus = String(status || '').toUpperCase();
-    const { Claim, ClaimHistory, Notification } = await getDb();
+    const db = await getDb();
+    const { Claim, ClaimHistory, Notification } = db;
 
     const claim = await Claim.findByPk(id);
     if (!claim) return NextResponse.json({ error: 'Not found' }, { status: 404 });
@@ -38,6 +40,8 @@ export async function PUT(req, { params }) {
       title: 'Claim Update',
       message: `Your claim ${claim.claimRef} is now ${nextStatus}.`
     });
+
+    await writeAuditLog(db, { actorUserId: user.id, action: 'AUDITOR_DECISION', entityType: 'Claim', entityId: claim.id, metadata: { status: nextStatus, txHash: claim.txHash || null }, req });
 
     return NextResponse.json({ message: `Claim ${nextStatus}`, claim: serializeClaim(claim) });
   } catch (error) {

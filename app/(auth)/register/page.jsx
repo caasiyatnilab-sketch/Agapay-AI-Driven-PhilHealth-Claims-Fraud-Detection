@@ -49,7 +49,6 @@ export default function Register() {
             <select className="mt-1 block w-full border border-gray-300 rounded-md p-2" value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})}>
               <option value="PATIENT">Patient (PhilHealth Member)</option>
               <option value="HOSPITAL">Hospital Representative</option>
-              <option value="AUDITOR">PhilHealth Auditor</option>
             </select>
           </div>
 
@@ -69,6 +68,7 @@ export default function Register() {
               </select>
             </div>
           )}
+          <p className="text-xs text-gray-500 bg-blue-50 border border-blue-100 rounded p-3">Auditor accounts are provisioned by administrators to protect production audit workflows. Use the seeded auditor demo account for local testing.</p>
           <button type="submit" className="w-full bg-phBlue text-white py-2 px-4 rounded-md hover:bg-blue-800 transition">Register</button>
         </form>
         <div className="mt-4 text-center">

@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - master
+      - work
+
+jobs:
+  web-checks:
+    name: Web checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Syntax checks
+        run: npm run check
+
+      - name: Build application
+        run: npm run build
+        env:
+          JWT_SECRET: ci-only-strong-secret-for-builds
+
+  ml-checks:
+    name: ML service checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Install ML dependencies
+        run: pip install -r ml/requirements.txt
+
+      - name: Python syntax checks
+        run: python -m py_compile ml/app.py

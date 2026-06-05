@@ -5,6 +5,8 @@ const checks = [
   ['blockchain/package.json', existsSync('blockchain/package.json'), 'Blockchain package manifest is present'],
   ['ml/requirements.txt', existsSync('ml/requirements.txt'), 'ML requirements file is present'],
   ['.env.example', existsSync('.env.example'), 'Environment template is present'],
+  ['.github/workflows/ci.yml', existsSync('.github/workflows/ci.yml'), 'CI workflow is present'],
+  ['.github/BRANCH_PROTECTION.md', existsSync('.github/BRANCH_PROTECTION.md'), 'Branch protection guide is present'],
 ];
 
 let warnings = 0;
