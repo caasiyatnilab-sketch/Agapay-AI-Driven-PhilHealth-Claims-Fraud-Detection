@@ -11,6 +11,7 @@ export default function AuditorDashboard() {
   const [claims, setClaims] = useState([]);
   const [selectedClaim, setSelectedClaim] = useState(null);
   const [notes, setNotes] = useState('');
+  const [analytics, setAnalytics] = useState(null);
 
   useEffect(() => {
     fetchClaims();
@@ -20,6 +21,8 @@ export default function AuditorDashboard() {
     try {
       const res = await axios.get('/api/claims', { headers: { Authorization: `Bearer ${token}` } });
       setClaims(res.data.claims || []);
+      const analyticsRes = await axios.get('/api/analytics/fraud', { headers: { Authorization: `Bearer ${token}` } });
+      setAnalytics(analyticsRes.data.summary || null);
     } catch (err) {
       toast.error('Failed to load auditor claims');
     }
@@ -66,7 +69,7 @@ export default function AuditorDashboard() {
     <div>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-gray-800">PhilHealth Auditor Dashboard</h1>
-        <button onClick={exportCSV} className="bg-gray-800 text-white px-4 py-2 rounded shadow hover:bg-black text-sm">Download CSV CSV</button>
+        <button onClick={exportCSV} className="bg-gray-800 text-white px-4 py-2 rounded shadow hover:bg-black text-sm">Download CSV</button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
@@ -97,6 +100,21 @@ export default function AuditorDashboard() {
              </div>
          </div>
       </div>
+
+      {analytics?.topRiskHospitals?.length > 0 && (
+        <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6 mb-8">
+          <h2 className="text-lg font-bold text-gray-800 mb-4">Top Risk Hospitals</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {analytics.topRiskHospitals.slice(0, 3).map((hospital) => (
+              <div key={hospital.hospital} className="border rounded-lg p-4 bg-gray-50">
+                <p className="font-semibold text-gray-800">{hospital.hospital}</p>
+                <p className="text-sm text-gray-600">{hospital.claims} claims · {hospital.highRisk} high risk</p>
+                <p className="text-sm font-bold text-phBlue">₱{hospital.amount.toLocaleString()}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <table className="min-w-full divide-y divide-gray-200">
