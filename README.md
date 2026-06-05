@@ -9,7 +9,8 @@ A fully functional Next.js 14 web platform that simulates the Philippine PhilHea
 - **AI Fraud Detection:** Synthetic data modeling detects anomalous claims based on hospital type, duration of stay, amount, and region.
 - **Blockchain Ledger:** Approved claims are written to a local Ethereum blockchain to prevent record tampering.
 - **Philippine Aesthetic:** True to local government styling with a secure, simple UI.
-- **Graceful Fallbacks:** If the ML service or Blockchain node are offline, the system will seamlessly use mocked AI risk scores and simulated blockchain hashes so the demo continues to function smoothly.
+- **Graceful Fallbacks:** If the ML service or Blockchain node are offline, the system uses a deterministic rule-engine fraud score and simulated blockchain hashes so the workflow continues safely.
+- **Operational Controls:** Input validation, role-aware claim access, CSV-safe reporting, enforced claim status transitions, notifications, and an auditor-only fraud analytics API support more realistic production scenarios.
 
 ## Setup Instructions
 
@@ -54,3 +55,9 @@ The SQLite database will automatically seed upon first successful API call.
 - **Hospital 1 (PGH):** hospital@test.com / password123
 - **Hospital 2 (St. Luke's):** hospital2@test.com / password123
 - **Auditor:** auditor@test.com / password123
+
+
+## Production Hardening Notes
+- Set a strong `JWT_SECRET` in `.env.local` before using non-demo data.
+- Run the ML service and blockchain node for live scoring and on-chain writes; the app will fall back to local rules/simulated transaction hashes when those services are unavailable.
+- Auditor analytics are available at `GET /api/analytics/fraud` with an auditor bearer token.

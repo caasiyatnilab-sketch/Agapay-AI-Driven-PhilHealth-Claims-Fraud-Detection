@@ -4,9 +4,16 @@ const { verifyAuth } = require('../../../../../lib/auth');
 
 export async function GET(req, { params }) {
   try {
-    verifyAuth(req);
+    const user = verifyAuth(req);
     const { id } = params;
-    const { ClaimHistory } = await getDb();
+    const { Claim, ClaimHistory } = await getDb();
+
+    const claim = await Claim.findByPk(id);
+    if (!claim) return NextResponse.json({ error: 'Claim not found' }, { status: 404 });
+    const canAccess = user.role === 'AUDITOR' ||
+      (user.role === 'PATIENT' && claim.patientId === user.id) ||
+      (user.role === 'HOSPITAL' && claim.hospitalId === user.hospitalId);
+    if (!canAccess) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
 
     const timeline = await ClaimHistory.findAll({
       where: { claimId: id },
@@ -15,6 +22,7 @@ export async function GET(req, { params }) {
 
     return NextResponse.json({ timeline });
   } catch (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const status = error.message.includes('token') ? 401 : 500;
+    return NextResponse.json({ error: error.message }, { status });
   }
 }
