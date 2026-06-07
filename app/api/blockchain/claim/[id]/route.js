@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server';
 const { ethers } = require('ethers');
 const { getDb } = require('../../../../../lib/db');
+const { verifyAuth } = require('../../../../../lib/auth');
 
 export async function GET(req, { params }) {
   try {
+    const user = verifyAuth(req);
     const { id } = params;
     
     // We try to get it from chain first
@@ -36,6 +38,21 @@ export async function GET(req, { params }) {
       return NextResponse.json({ error: 'Claim not found anywhere.' }, { status: 404 });
     }
 
+    // Authorization check
+    if (dbClaim) {
+      const canAccess = user.role === 'AUDITOR' ||
+        (user.role === 'PATIENT' && dbClaim.patientId === user.id) ||
+        (user.role === 'HOSPITAL' && dbClaim.hospitalId === user.hospitalId);
+
+      if (!canAccess) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+      }
+    } else if (onChainData && user.role !== 'AUDITOR') {
+      // If only on-chain data exists, we can't easily verify ownership without more complex logic.
+      // For now, let's at least restrict to auditors if we can't verify against a DB claim.
+      return NextResponse.json({ error: 'Unauthorized to view on-chain only data' }, { status: 403 });
+    }
+
     return NextResponse.json({ 
        claim: {
          source: onChainData ? 'BLOCKCHAIN' : 'DATABASE_FALLBACK',
@@ -45,6 +62,8 @@ export async function GET(req, { params }) {
     });
   } catch (error) {
     console.error('Explorer error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const status = error.message.includes('token') ? 401 : 500;
+    const message = status === 500 ? 'Internal Server Error' : error.message;
+    return NextResponse.json({ error: message }, { status });
   }
 }

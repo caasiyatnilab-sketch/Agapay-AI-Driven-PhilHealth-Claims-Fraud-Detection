@@ -33,6 +33,7 @@ export async function GET(req) {
   } catch (error) {
     console.error('Reports API error:', error);
     const status = error.message === 'Unauthorized' ? 403 : 500;
-    return NextResponse.json({ error: error.message }, { status });
+    const message = status === 500 ? 'Internal Server Error' : error.message;
+    return NextResponse.json({ error: message }, { status });
   }
 }

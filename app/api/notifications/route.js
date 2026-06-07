@@ -15,7 +15,9 @@ export async function GET(req) {
 
     return NextResponse.json({ notifications });
   } catch (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const status = error.message.includes('token') ? 401 : 500;
+    const message = status === 500 ? 'Internal Server Error' : error.message;
+    return NextResponse.json({ error: message }, { status });
   }
 }
 
@@ -33,6 +35,8 @@ export async function PUT(req) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const status = error.message.includes('token') ? 401 : 500;
+    const message = status === 500 ? 'Internal Server Error' : error.message;
+    return NextResponse.json({ error: message }, { status });
   }
 }

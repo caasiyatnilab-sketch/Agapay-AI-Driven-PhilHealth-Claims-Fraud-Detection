@@ -30,6 +30,7 @@ export async function GET(req, { params }) {
     return NextResponse.json({ claim: serializeClaim(claim) });
   } catch (error) {
     const status = error.message.includes('token') ? 401 : 500;
-    return NextResponse.json({ error: error.message }, { status });
+    const message = status === 500 ? 'Internal Server Error' : error.message;
+    return NextResponse.json({ error: message }, { status });
   }
 }

@@ -17,6 +17,7 @@ export async function GET(request) {
     return NextResponse.json({ claims: claims.map(serializeClaim) });
   } catch (error) {
     const status = error.message.includes('token') ? 401 : 500;
-    return NextResponse.json({ error: error.message }, { status });
+    const message = status === 500 ? 'Internal Server Error' : error.message;
+    return NextResponse.json({ error: message }, { status });
   }
 }
