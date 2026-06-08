@@ -1,10 +1,26 @@
 import { NextResponse } from 'next/server';
 const { ethers } = require('ethers');
 const { getDb } = require('../../../../../lib/db');
+const { verifyAuth } = require('../../../../../lib/auth');
 
 export async function GET(req, { params }) {
   try {
+    const user = verifyAuth(req);
     const { id } = params;
+
+    const { Claim } = await getDb();
+    const dbClaim = await Claim.findByPk(id);
+
+    // Authorization check: AUDITOR can access any claim.
+    // PATIENT/HOSPITAL must be associated with the claim in the DB to view it.
+    const hasOwnership = dbClaim && (
+      (user.role === 'PATIENT' && dbClaim.patientId === user.id) ||
+      (user.role === 'HOSPITAL' && dbClaim.hospitalId === user.hospitalId)
+    );
+
+    if (user.role !== 'AUDITOR' && !hasOwnership) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+    }
     
     // We try to get it from chain first
     const provider = new ethers.JsonRpcProvider(process.env.RPC_URL || 'http://127.0.0.1:8545');
@@ -29,9 +45,6 @@ export async function GET(req, { params }) {
       console.warn('Chain read failed. Proceeding to DB check.', chainErr.message);
     }
 
-    const { Claim } = await getDb();
-    const dbClaim = await Claim.findByPk(id);
-
     if (!dbClaim && !onChainData) {
       return NextResponse.json({ error: 'Claim not found anywhere.' }, { status: 404 });
     }
@@ -45,6 +58,9 @@ export async function GET(req, { params }) {
     });
   } catch (error) {
     console.error('Explorer error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const status = error.message.includes('token') ? 401 : 500;
+    return NextResponse.json({
+      error: status === 500 ? 'Internal Server Error' : error.message
+    }, { status });
   }
 }
