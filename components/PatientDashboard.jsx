@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import { AuthContext } from './AuthProvider';
 import QRCodeModal from './QRCodeModal';
 import { format } from 'date-fns';
+import { FileText, Loader2 } from 'lucide-react';
 
 export default function PatientDashboard() {
   const { token } = useContext(AuthContext);
@@ -13,6 +14,7 @@ export default function PatientDashboard() {
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({ hospitalId: '', diagnosis: '', icd10Code: '', caseRateType: '', amountClaimed: 0, daysAdmitted: 1 });
   const [selectedQR, setSelectedQR] = useState(null);
+  const [isExtracting, setIsExtracting] = useState(false);
 
   useEffect(() => {
     fetchClaims();
@@ -39,11 +41,14 @@ export default function PatientDashboard() {
   };
 
   const handleSimulateOCR = async () => {
+    setIsExtracting(true);
     try {
       const res = await axios.post('/api/ml/extract', {}, { baseURL: '' });
       toast.success(res.data.extracted_text || 'OCR Simulated');
     } catch (e) {
       toast.error('OCR Simulation failed, backend might be offline.');
+    } finally {
+      setIsExtracting(false);
     }
   }
 
@@ -104,9 +109,24 @@ export default function PatientDashboard() {
             
             <div className="col-span-1 md:col-span-2 mt-2">
               <label className="block text-sm font-medium text-gray-700 mb-2">Medical Documents (Simulated)</label>
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:bg-gray-50" onClick={handleSimulateOCR}>
-                 <p className="text-sm text-gray-500">Click to run AI OCR Document Extraction</p>
-              </div>
+              <button
+                type="button"
+                className="w-full border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-phBlue focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                onClick={handleSimulateOCR}
+                disabled={isExtracting}
+                aria-label="Run AI OCR Document Extraction"
+              >
+                <div className="flex flex-col items-center justify-center">
+                  {isExtracting ? (
+                    <Loader2 className="w-8 h-8 text-phBlue animate-spin mb-2" />
+                  ) : (
+                    <FileText className="w-8 h-8 text-gray-400 mb-2" />
+                  )}
+                  <p className="text-sm text-gray-500 font-medium">
+                    {isExtracting ? 'Extracting medical data...' : 'Click to run AI OCR Document Extraction'}
+                  </p>
+                </div>
+              </button>
             </div>
 
             <div className="col-span-1 md:col-span-2 flex justify-end space-x-3 mt-4">
