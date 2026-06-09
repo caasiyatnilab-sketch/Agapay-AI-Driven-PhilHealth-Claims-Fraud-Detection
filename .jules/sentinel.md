@@ -1,0 +1,4 @@
+## 2025-05-14 - [IDOR in Blockchain Claim Explorer]
+**Vulnerability:** The `/api/blockchain/claim/[id]` endpoint was completely unprotected, allowing any user (or unauthenticated attacker) to view sensitive claim details from both the blockchain and the database by simply guessing or iterating through claim IDs.
+**Learning:** Developers often assume that "explorer" or "blockchain" endpoints are inherently public or less sensitive, but when they aggregate data from a private database or link to authenticated users, they must be protected with the same rigor as standard CRUD APIs.
+**Prevention:** Always implement `verifyAuth` and role-based ownership checks on any endpoint that accepts a record ID and returns specific data. Ensure the database record is fetched to verify ownership before performing external lookups (like blockchain calls).
