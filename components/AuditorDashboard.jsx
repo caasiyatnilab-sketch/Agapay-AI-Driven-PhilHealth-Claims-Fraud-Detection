@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useContext } from 'react';
+import { useState, useEffect, useContext, useMemo } from 'react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { AuthContext } from './AuthProvider';
@@ -55,15 +55,30 @@ export default function AuditorDashboard() {
     }
   };
 
-  const highRisk = claims.filter(c => c.riskScore > 0.7).length;
-  const medRisk = claims.filter(c => c.riskScore > 0.3 && c.riskScore <= 0.7).length;
-  const lowRisk = claims.filter(c => c.riskScore <= 0.3).length;
+  // ⚡ Optimization: Memoize risk level counts to avoid re-calculating on every render
+  const riskStats = useMemo(() => {
+    const high = claims.filter(c => c.riskScore > 0.7).length;
+    const med = claims.filter(c => c.riskScore > 0.3 && c.riskScore <= 0.7).length;
+    const low = claims.filter(c => c.riskScore <= 0.3).length;
 
-  const pieData = [
-    { name: 'High Risk', value: highRisk, color: '#ef4444' },
-    { name: 'Medium Risk', value: medRisk, color: '#eab308' },
-    { name: 'Low Risk', value: lowRisk, color: '#22c55e' }
-  ];
+    return {
+      high,
+      med,
+      low,
+      pieData: [
+        { name: 'High Risk', value: high, color: '#ef4444' },
+        { name: 'Medium Risk', value: med, color: '#eab308' },
+        { name: 'Low Risk', value: low, color: '#22c55e' }
+      ]
+    };
+  }, [claims]);
+
+  const { high: highRisk, med: medRisk, low: lowRisk, pieData } = riskStats;
+
+  // ⚡ Optimization: Memoize sorted claims to prevent O(N log N) work and state mutation during render
+  const sortedClaims = useMemo(() => {
+    return [...claims].sort((a, b) => (b.riskScore || 0) - (a.riskScore || 0));
+  }, [claims]);
 
   return (
     <div>
@@ -129,7 +144,7 @@ export default function AuditorDashboard() {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {claims.sort((a,b) => b.riskScore - a.riskScore).map((claim) => (
+            {sortedClaims.map((claim) => (
               <tr key={claim.id} className="hover:bg-gray-50">
                 <td className="px-6 py-4 whitespace-nowrap">
                    <div className="text-sm font-bold text-gray-900">{claim.claimRef}</div>
