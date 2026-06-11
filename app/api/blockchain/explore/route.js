@@ -1,8 +1,14 @@
 import { NextResponse } from 'next/server';
 import { getBlockchainContract } from '@/lib/blockchain';
+const { verifyAuth } = require('../../../../lib/auth');
 
-export async function GET() {
+export async function GET(req) {
   try {
+    const user = verifyAuth(req);
+    if (user.role !== 'AUDITOR' && user.role !== 'HOSPITAL') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+    }
+
     const contract = await getBlockchainContract();
     
     if (!contract) {
@@ -41,6 +47,9 @@ export async function GET() {
 
     return NextResponse.json({ status: 'LIVE', events });
   } catch (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error('Blockchain Explore Error:', error);
+    const status = error.message.includes('token') ? 401 : 500;
+    const message = status === 500 ? 'An unexpected error occurred' : error.message;
+    return NextResponse.json({ error: message }, { status });
   }
 }

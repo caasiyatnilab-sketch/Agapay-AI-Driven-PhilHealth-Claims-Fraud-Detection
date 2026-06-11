@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server';
 const { ethers } = require('ethers');
 const { getDb } = require('../../../../../lib/db');
+const { verifyAuth } = require('../../../../../lib/auth');
 
 export async function GET(req, { params }) {
   try {
+    const user = verifyAuth(req);
     const { id } = params;
     
     // We try to get it from chain first
@@ -36,6 +38,18 @@ export async function GET(req, { params }) {
       return NextResponse.json({ error: 'Claim not found anywhere.' }, { status: 404 });
     }
 
+    // Access control
+    const patientId = dbClaim ? dbClaim.patientId : (onChainData ? onChainData.patient : null);
+    const hospitalId = dbClaim ? dbClaim.hospitalId : null; // We might not have hospitalId mapping for blockchain address easily here without more lookups
+
+    const isOwner = user.role === 'AUDITOR' ||
+                    (user.role === 'PATIENT' && patientId && String(patientId) === String(user.id)) ||
+                    (user.role === 'HOSPITAL' && hospitalId && String(hospitalId) === String(user.hospitalId));
+
+    if (!isOwner) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+    }
+
     return NextResponse.json({ 
        claim: {
          source: onChainData ? 'BLOCKCHAIN' : 'DATABASE_FALLBACK',
@@ -45,6 +59,8 @@ export async function GET(req, { params }) {
     });
   } catch (error) {
     console.error('Explorer error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const status = error.message.includes('token') ? 401 : 500;
+    const message = status === 500 ? 'An unexpected error occurred' : error.message;
+    return NextResponse.json({ error: message }, { status });
   }
 }
