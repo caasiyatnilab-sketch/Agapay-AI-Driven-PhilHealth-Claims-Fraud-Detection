@@ -42,6 +42,9 @@ export async function POST(req) {
     });
   } catch (error) {
     console.error('Login API Error:', error);
-    return NextResponse.json({ error: error.message }, { status: 400 });
+    const message = error.message.includes('credentials') || error.message.includes('required')
+      ? error.message
+      : 'An error occurred during login. Please try again.';
+    return NextResponse.json({ error: message }, { status: 400 });
   }
 }
