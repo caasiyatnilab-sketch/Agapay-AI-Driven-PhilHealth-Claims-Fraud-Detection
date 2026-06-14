@@ -1,0 +1,3 @@
+## 2026-06-14 - [A11y/UX] Enhanced Keyboard Accessibility and Feedback in Forms
+**Learning:** Custom interactive elements (like the dashed OCR dropzone) are invisible to screen readers and keyboard users unless explicitly given a role, tabIndex, and keyboard event handlers. Additionally, linking labels to inputs using `htmlFor` and `id` is crucial for accessibility. Providing visual feedback (loading states) during async operations significantly improves the perceived reliability of the system.
+**Action:** Always ensure custom `div` buttons have `role="button"`, `tabIndex="0"`, and `onKeyDown` handlers. Use `isSubmitting`/`isSimulating` states to provide immediate feedback and prevent double-actions. Ensure all form fields are properly labeled with `htmlFor` and `id`.
