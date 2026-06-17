@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server';
 const { ethers } = require('ethers');
 const { getDb } = require('../../../../../lib/db');
+const { verifyAuth, canAccess } = require('../../../../../lib/auth');
 
 export async function GET(req, { params }) {
   try {
+    const user = verifyAuth(req);
     const { id } = params;
     
     // We try to get it from chain first
@@ -36,6 +38,12 @@ export async function GET(req, { params }) {
       return NextResponse.json({ error: 'Claim not found anywhere.' }, { status: 404 });
     }
 
+    // Check authorization
+    const accessCheckTarget = dbClaim || onChainData;
+    if (!canAccess(user, accessCheckTarget)) {
+       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+    }
+
     return NextResponse.json({ 
        claim: {
          source: onChainData ? 'BLOCKCHAIN' : 'DATABASE_FALLBACK',
@@ -45,6 +53,8 @@ export async function GET(req, { params }) {
     });
   } catch (error) {
     console.error('Explorer error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const status = error.message.includes('token') || error.message.includes('misconfigured') ? 401 : 500;
+    const message = status === 500 ? 'An internal server error occurred.' : error.message;
+    return NextResponse.json({ error: message }, { status });
   }
 }

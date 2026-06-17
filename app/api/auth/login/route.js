@@ -21,9 +21,15 @@ export async function POST(req) {
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }
 
+    const secret = process.env.JWT_SECRET;
+    if (!secret) {
+      console.error('CRITICAL: JWT_SECRET environment variable is not set.');
+      return NextResponse.json({ error: 'Authentication system is misconfigured' }, { status: 500 });
+    }
+
     const token = jwt.sign(
       { id: user.id, role: user.role, hospitalId: user.hospitalId },
-      process.env.JWT_SECRET || 'fallback-secret',
+      secret,
       { expiresIn: '1d', issuer: 'agapay' }
     );
 
@@ -42,6 +48,6 @@ export async function POST(req) {
     });
   } catch (error) {
     console.error('Login API Error:', error);
-    return NextResponse.json({ error: error.message }, { status: 400 });
+    return NextResponse.json({ error: 'An error occurred during login' }, { status: 400 });
   }
 }

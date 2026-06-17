@@ -44,7 +44,7 @@ export default function Login() {
           <button type="submit" className="w-full bg-phBlue text-white py-2 px-4 rounded-md hover:bg-blue-800 transition">Sign In</button>
         </form>
         <div className="mt-4 text-center">
-          <Link href="/register" className="text-phBlue hover:underline text-sm">Don't have an account? Register</Link>
+          <Link href="/register" className="text-phBlue hover:underline text-sm">Don&apos;t have an account? Register</Link>
         </div>
         
         <div className="mt-8 border-t pt-4">
