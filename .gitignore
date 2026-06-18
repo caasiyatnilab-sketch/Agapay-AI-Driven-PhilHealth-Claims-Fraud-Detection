@@ -1,0 +1,14 @@
+node_modules/
+.next/
+out/
+build/
+dist/
+.env*
+database.sqlite
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.jules/
+! .jules/sentinel.md
+! .jules/bolt.md
+! .jules/palette.md

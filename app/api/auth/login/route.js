@@ -21,9 +21,14 @@ export async function POST(req) {
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }
 
+    const secret = process.env.JWT_SECRET;
+    if (!secret) {
+      throw new Error('JWT_SECRET environment variable is not defined');
+    }
+
     const token = jwt.sign(
       { id: user.id, role: user.role, hospitalId: user.hospitalId },
-      process.env.JWT_SECRET || 'fallback-secret',
+      secret,
       { expiresIn: '1d', issuer: 'agapay' }
     );
 
