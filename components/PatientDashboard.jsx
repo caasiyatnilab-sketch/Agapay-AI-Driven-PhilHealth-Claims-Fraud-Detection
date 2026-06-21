@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import { AuthContext } from './AuthProvider';
 import QRCodeModal from './QRCodeModal';
 import { format } from 'date-fns';
+import { Loader2 } from 'lucide-react';
 
 export default function PatientDashboard() {
   const { token } = useContext(AuthContext);
@@ -13,6 +14,8 @@ export default function PatientDashboard() {
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({ hospitalId: '', diagnosis: '', icd10Code: '', caseRateType: '', amountClaimed: 0, daysAdmitted: 1 });
   const [selectedQR, setSelectedQR] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isExtracting, setIsExtracting] = useState(false);
 
   useEffect(() => {
     fetchClaims();
@@ -39,16 +42,22 @@ export default function PatientDashboard() {
   };
 
   const handleSimulateOCR = async () => {
+    if (isExtracting) return;
+    setIsExtracting(true);
     try {
       const res = await axios.post('/api/ml/extract', {}, { baseURL: '' });
       toast.success(res.data.extracted_text || 'OCR Simulated');
     } catch (e) {
       toast.error('OCR Simulation failed, backend might be offline.');
+    } finally {
+      setIsExtracting(false);
     }
-  }
+  };
 
   const submitClaim = async (e) => {
     e.preventDefault();
+    if (isSubmitting) return;
+    setIsSubmitting(true);
     try {
       await axios.post('/api/claims', formData, { headers: { Authorization: `Bearer ${token}` } });
       toast.success('Claim submitted successfully!');
@@ -56,6 +65,8 @@ export default function PatientDashboard() {
       fetchClaims();
     } catch (err) {
       toast.error(err.response?.data?.error || 'Failed to submit claim');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -71,47 +82,68 @@ export default function PatientDashboard() {
           <h2 className="text-xl font-bold mb-4">Submit New PhilHealth Claim</h2>
           <form onSubmit={submitClaim} className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700">Hospital</label>
-              <select required className="mt-1 block w-full border border-gray-300 rounded-md p-2" value={formData.hospitalId} onChange={e => setFormData({...formData, hospitalId: e.target.value})}>
+              <label htmlFor="hospitalSelect" className="block text-sm font-medium text-gray-700">Hospital</label>
+              <select id="hospitalSelect" required className="mt-1 block w-full border border-gray-300 rounded-md p-2" value={formData.hospitalId} onChange={e => setFormData({...formData, hospitalId: e.target.value})}>
                 <option value="">Select Hospital</option>
                 {hospitals.map(h => <option key={h.id} value={h.id}>{h.name}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">Diagnosis</label>
-              <input type="text" required className="mt-1 block w-full border border-gray-300 rounded-md p-2" value={formData.diagnosis} onChange={e => setFormData({...formData, diagnosis: e.target.value})} />
+              <label htmlFor="diagnosisInput" className="block text-sm font-medium text-gray-700">Diagnosis</label>
+              <input id="diagnosisInput" type="text" required className="mt-1 block w-full border border-gray-300 rounded-md p-2" value={formData.diagnosis} onChange={e => setFormData({...formData, diagnosis: e.target.value})} />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">ICD-10 Code</label>
-              <input type="text" required className="mt-1 block w-full border border-gray-300 rounded-md p-2" value={formData.icd10Code} onChange={e => setFormData({...formData, icd10Code: e.target.value})} />
+              <label htmlFor="icd10Input" className="block text-sm font-medium text-gray-700">ICD-10 Code</label>
+              <input id="icd10Input" type="text" required className="mt-1 block w-full border border-gray-300 rounded-md p-2" value={formData.icd10Code} onChange={e => setFormData({...formData, icd10Code: e.target.value})} />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">Case Rate Type</label>
-              <select required className="mt-1 block w-full border border-gray-300 rounded-md p-2" value={formData.caseRateType} onChange={e => setFormData({...formData, caseRateType: e.target.value})}>
+              <label htmlFor="caseRateSelect" className="block text-sm font-medium text-gray-700">Case Rate Type</label>
+              <select id="caseRateSelect" required className="mt-1 block w-full border border-gray-300 rounded-md p-2" value={formData.caseRateType} onChange={e => setFormData({...formData, caseRateType: e.target.value})}>
                 <option value="">Select</option>
                 <option value="MEDICAL">Medical Case</option>
                 <option value="SURGICAL">Surgical Case</option>
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">Amount Claimed (PHP)</label>
-              <input type="number" required min="1" className="mt-1 block w-full border border-gray-300 rounded-md p-2" value={formData.amountClaimed} onChange={e => setFormData({...formData, amountClaimed: e.target.value})} />
+              <label htmlFor="amountInput" className="block text-sm font-medium text-gray-700">Amount Claimed (PHP)</label>
+              <input id="amountInput" type="number" required min="1" className="mt-1 block w-full border border-gray-300 rounded-md p-2" value={formData.amountClaimed} onChange={e => setFormData({...formData, amountClaimed: e.target.value})} />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">Days Admitted</label>
-              <input type="number" required min="1" className="mt-1 block w-full border border-gray-300 rounded-md p-2" value={formData.daysAdmitted} onChange={e => setFormData({...formData, daysAdmitted: e.target.value})} />
+              <label htmlFor="daysInput" className="block text-sm font-medium text-gray-700">Days Admitted</label>
+              <input id="daysInput" type="number" required min="1" className="mt-1 block w-full border border-gray-300 rounded-md p-2" value={formData.daysAdmitted} onChange={e => setFormData({...formData, daysAdmitted: e.target.value})} />
             </div>
             
             <div className="col-span-1 md:col-span-2 mt-2">
               <label className="block text-sm font-medium text-gray-700 mb-2">Medical Documents (Simulated)</label>
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:bg-gray-50" onClick={handleSimulateOCR}>
-                 <p className="text-sm text-gray-500">Click to run AI OCR Document Extraction</p>
+              <div
+                role="button"
+                tabIndex="0"
+                aria-label="Simulate AI OCR Document Extraction"
+                className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:bg-gray-50 focus:ring-2 focus:ring-phBlue outline-none"
+                onClick={handleSimulateOCR}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleSimulateOCR(); } }}
+              >
+                 {isExtracting ? (
+                   <div className="flex flex-col items-center">
+                     <Loader2 className="w-6 h-6 animate-spin text-phBlue mb-2" />
+                     <p className="text-sm text-gray-500">Extracting data...</p>
+                   </div>
+                 ) : (
+                   <p className="text-sm text-gray-500">Click to run AI OCR Document Extraction</p>
+                 )}
               </div>
             </div>
 
             <div className="col-span-1 md:col-span-2 flex justify-end space-x-3 mt-4">
               <button type="button" onClick={() => setShowForm(false)} className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">Cancel</button>
-              <button type="submit" className="px-4 py-2 bg-phBlue text-white rounded-md hover:bg-blue-800">Submit Claim</button>
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="px-4 py-2 bg-phBlue text-white rounded-md hover:bg-blue-800 flex items-center disabled:bg-blue-300"
+              >
+                {isSubmitting && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+                {isSubmitting ? 'Submitting...' : 'Submit Claim'}
+              </button>
             </div>
           </form>
         </div>
@@ -146,7 +178,13 @@ export default function PatientDashboard() {
                   </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                  <button onClick={() => setSelectedQR(claim.id)} className="text-indigo-600 hover:text-indigo-900 mx-2">QR</button>
+                  <button
+                    onClick={() => setSelectedQR(claim.id)}
+                    className="text-indigo-600 hover:text-indigo-900 mx-2"
+                    aria-label={`View QR Verification Code for claim ${claim.claimRef}`}
+                  >
+                    QR
+                  </button>
                 </td>
               </tr>
             ))}
