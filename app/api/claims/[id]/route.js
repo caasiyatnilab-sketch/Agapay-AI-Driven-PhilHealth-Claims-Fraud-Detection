@@ -1,13 +1,7 @@
 import { NextResponse } from 'next/server';
 const { getDb } = require('../../../../lib/db');
-const { verifyAuth } = require('../../../../lib/auth');
+const { verifyAuth, canAccess } = require('../../../../lib/auth');
 const { serializeClaim } = require('../../../../lib/claimRules');
-
-function canAccess(user, claim) {
-  return user.role === 'AUDITOR' ||
-    (user.role === 'PATIENT' && claim.patientId === user.id) ||
-    (user.role === 'HOSPITAL' && claim.hospitalId === user.hospitalId);
-}
 
 export async function GET(req, { params }) {
   try {
@@ -29,7 +23,10 @@ export async function GET(req, { params }) {
 
     return NextResponse.json({ claim: serializeClaim(claim) });
   } catch (error) {
-    const status = error.message.includes('token') ? 401 : 500;
-    return NextResponse.json({ error: error.message }, { status });
+    console.error('Claim GET Error:', error);
+    const isAuthError = error.message.includes('token');
+    const status = isAuthError ? 401 : 500;
+    const message = isAuthError ? error.message : 'Internal Server Error';
+    return NextResponse.json({ error: message }, { status });
   }
 }

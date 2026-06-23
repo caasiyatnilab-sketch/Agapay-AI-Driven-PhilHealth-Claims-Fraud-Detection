@@ -21,9 +21,14 @@ export async function POST(req) {
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }
 
+    const secret = process.env.JWT_SECRET;
+    if (!secret) {
+      throw new Error('Server configuration error: JWT_SECRET is missing');
+    }
+
     const token = jwt.sign(
       { id: user.id, role: user.role, hospitalId: user.hospitalId },
-      process.env.JWT_SECRET || 'fallback-secret',
+      secret,
       { expiresIn: '1d', issuer: 'agapay' }
     );
 
@@ -42,6 +47,9 @@ export async function POST(req) {
     });
   } catch (error) {
     console.error('Login API Error:', error);
-    return NextResponse.json({ error: error.message }, { status: 400 });
+    const message = error.message.includes('Server configuration error') || error.message.includes('database')
+      ? 'Internal Server Error'
+      : error.message;
+    return NextResponse.json({ error: message }, { status: 400 });
   }
 }
