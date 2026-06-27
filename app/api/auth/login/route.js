@@ -21,9 +21,13 @@ export async function POST(req) {
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }
 
+    if (!process.env.JWT_SECRET) {
+      throw new Error('JWT_SECRET is not configured on the server');
+    }
+
     const token = jwt.sign(
       { id: user.id, role: user.role, hospitalId: user.hospitalId },
-      process.env.JWT_SECRET || 'fallback-secret',
+      process.env.JWT_SECRET,
       { expiresIn: '1d', issuer: 'agapay' }
     );
 
@@ -42,6 +46,7 @@ export async function POST(req) {
     });
   } catch (error) {
     console.error('Login API Error:', error);
-    return NextResponse.json({ error: error.message }, { status: 400 });
+    const message = error.message.includes('required') ? error.message : 'Internal Server Error';
+    return NextResponse.json({ error: message }, { status: message === 'Internal Server Error' ? 500 : 400 });
   }
 }
