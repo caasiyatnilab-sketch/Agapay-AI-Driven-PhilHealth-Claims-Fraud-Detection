@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useContext } from 'react';
+import { useState, useEffect, useContext, useMemo } from 'react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { AuthContext } from './AuthProvider';
@@ -19,9 +19,12 @@ export default function AuditorDashboard() {
 
   const fetchClaims = async () => {
     try {
-      const res = await axios.get('/api/claims', { headers: { Authorization: `Bearer ${token}` } });
-      setClaims(res.data.claims || []);
-      const analyticsRes = await axios.get('/api/analytics/fraud', { headers: { Authorization: `Bearer ${token}` } });
+      // Parallelize fetching to reduce total wait time
+      const [claimsRes, analyticsRes] = await Promise.all([
+        axios.get('/api/claims/all', { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get('/api/analytics/fraud', { headers: { Authorization: `Bearer ${token}` } })
+      ]);
+      setClaims(claimsRes.data.claims || []);
       setAnalytics(analyticsRes.data.summary || null);
     } catch (err) {
       toast.error('Failed to load auditor claims');
@@ -55,9 +58,19 @@ export default function AuditorDashboard() {
     }
   };
 
-  const highRisk = claims.filter(c => c.riskScore > 0.7).length;
-  const medRisk = claims.filter(c => c.riskScore > 0.3 && c.riskScore <= 0.7).length;
-  const lowRisk = claims.filter(c => c.riskScore <= 0.3).length;
+  // Use useMemo to consolidate multiple filters/reduces and sort into a single pass.
+  // This prevents expensive re-calculations on every keystroke in Audit Notes.
+  const { highRisk, medRisk, lowRisk, totalAmount, sortedClaims } = useMemo(() => {
+    let high = 0, med = 0, low = 0, total = 0;
+    const sorted = [...claims].sort((a, b) => (b.riskScore || 0) - (a.riskScore || 0));
+    for (const c of sorted) {
+      total += (c.amountClaimed || 0);
+      if (c.riskScore > 0.7) high++;
+      else if (c.riskScore > 0.3) med++;
+      else low++;
+    }
+    return { highRisk: high, medRisk: med, lowRisk: low, totalAmount: total, sortedClaims: sorted };
+  }, [claims]);
 
   const pieData = [
     { name: 'High Risk', value: highRisk, color: '#ef4444' },
@@ -79,7 +92,7 @@ export default function AuditorDashboard() {
          </div>
          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100 flex flex-col justify-center">
              <h4 className="text-xs text-gray-500 uppercase font-semibold tracking-wider">Total Amount</h4>
-             <p className="text-3xl font-bold text-phBlue mt-2">₱{claims.reduce((acc, c) => acc + c.amountClaimed, 0).toLocaleString()}</p>
+             <p className="text-3xl font-bold text-phBlue mt-2">₱{totalAmount.toLocaleString()}</p>
          </div>
          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100 col-span-1 md:col-span-2 flex items-center">
              <div className="w-1/2">
@@ -129,7 +142,7 @@ export default function AuditorDashboard() {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {claims.sort((a,b) => b.riskScore - a.riskScore).map((claim) => (
+            {sortedClaims.map((claim) => (
               <tr key={claim.id} className="hover:bg-gray-50">
                 <td className="px-6 py-4 whitespace-nowrap">
                    <div className="text-sm font-bold text-gray-900">{claim.claimRef}</div>
