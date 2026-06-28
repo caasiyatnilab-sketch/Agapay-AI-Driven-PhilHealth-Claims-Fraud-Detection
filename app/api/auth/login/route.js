@@ -21,9 +21,15 @@ export async function POST(req) {
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }
 
+    const secret = process.env.JWT_SECRET;
+    if (!secret) {
+      console.error('CRITICAL: JWT_SECRET environment variable is not set');
+      return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    }
+
     const token = jwt.sign(
       { id: user.id, role: user.role, hospitalId: user.hospitalId },
-      process.env.JWT_SECRET || 'fallback-secret',
+      secret,
       { expiresIn: '1d', issuer: 'agapay' }
     );
 
@@ -42,6 +48,10 @@ export async function POST(req) {
     });
   } catch (error) {
     console.error('Login API Error:', error);
-    return NextResponse.json({ error: error.message }, { status: 400 });
+    // Mask internal error details to prevent information leakage
+    const errorMessage = error.message === 'Email and password are required.'
+      ? error.message
+      : 'Internal Server Error';
+    return NextResponse.json({ error: errorMessage }, { status: error.message === 'Email and password are required.' ? 400 : 500 });
   }
 }
