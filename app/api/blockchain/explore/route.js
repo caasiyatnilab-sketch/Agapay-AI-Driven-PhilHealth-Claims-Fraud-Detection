@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server';
 import { getBlockchainContract } from '@/lib/blockchain';
+const { verifyAuth } = require('@/lib/auth');
 
-export async function GET() {
+export async function GET(req) {
   try {
+    verifyAuth(req);
     const contract = await getBlockchainContract();
     
     if (!contract) {
