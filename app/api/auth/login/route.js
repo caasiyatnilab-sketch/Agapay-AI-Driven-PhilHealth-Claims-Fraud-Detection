@@ -9,7 +9,7 @@ export async function POST(req) {
     const body = await req.json();
     const email = normalizeEmail(body.email);
     const password = String(body.password || '');
-    if (!email || !password) throw new Error('Email and password are required.');
+    if (!email || !password) return NextResponse.json({ error: 'Email and password are required.' }, { status: 400 });
 
     const { User, Hospital } = await getDb();
     const user = await User.findOne({
@@ -21,9 +21,14 @@ export async function POST(req) {
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }
 
+    const secret = process.env.JWT_SECRET;
+    if (!secret) {
+      throw new Error('JWT_SECRET is not configured');
+    }
+
     const token = jwt.sign(
       { id: user.id, role: user.role, hospitalId: user.hospitalId },
-      process.env.JWT_SECRET || 'fallback-secret',
+      secret,
       { expiresIn: '1d', issuer: 'agapay' }
     );
 
@@ -42,6 +47,7 @@ export async function POST(req) {
     });
   } catch (error) {
     console.error('Login API Error:', error);
-    return NextResponse.json({ error: error.message }, { status: 400 });
+    // Mask specific error details for production security
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

@@ -1,13 +1,7 @@
 import { NextResponse } from 'next/server';
 const { getDb } = require('../../../../lib/db');
-const { verifyAuth } = require('../../../../lib/auth');
+const { verifyAuth, canAccess } = require('../../../../lib/auth');
 const { serializeClaim } = require('../../../../lib/claimRules');
-
-function canAccess(user, claim) {
-  return user.role === 'AUDITOR' ||
-    (user.role === 'PATIENT' && claim.patientId === user.id) ||
-    (user.role === 'HOSPITAL' && claim.hospitalId === user.hospitalId);
-}
 
 export async function GET(req, { params }) {
   try {
