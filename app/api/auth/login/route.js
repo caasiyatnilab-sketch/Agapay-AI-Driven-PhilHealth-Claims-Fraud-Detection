@@ -21,9 +21,12 @@ export async function POST(req) {
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }
 
+    if (!process.env.JWT_SECRET) {
+      throw new Error('JWT_SECRET is not configured on the server.');
+    }
     const token = jwt.sign(
       { id: user.id, role: user.role, hospitalId: user.hospitalId },
-      process.env.JWT_SECRET || 'fallback-secret',
+      process.env.JWT_SECRET,
       { expiresIn: '1d', issuer: 'agapay' }
     );
 
