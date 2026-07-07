@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server';
-import { getBlockchainContract } from '@/lib/blockchain';
+const { verifyAuth } = require('../../../../lib/auth');
+const { getBlockchainContract } = require('../../../../lib/blockchain');
 
-export async function GET() {
+export async function GET(req) {
   try {
+    verifyAuth(req);
     const contract = await getBlockchainContract();
     
     if (!contract) {
@@ -41,6 +43,6 @@ export async function GET() {
 
     return NextResponse.json({ status: 'LIVE', events });
   } catch (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error.message }, { status: error.status || 500 });
   }
 }
