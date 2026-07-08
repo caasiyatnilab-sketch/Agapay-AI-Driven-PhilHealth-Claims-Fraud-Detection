@@ -21,3 +21,6 @@ Thumbs.db
 *.sqlite3
 *.db
 *.db3
+
+# Next.js
+.next/

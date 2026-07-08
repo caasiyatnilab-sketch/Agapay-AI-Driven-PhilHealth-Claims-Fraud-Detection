@@ -7,7 +7,7 @@ export default function QRCodeModal({ claimId, onClose }) {
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg p-8 max-w-sm w-full relative mx-auto shadow-2xl">
-        <button onClick={onClose} className="absolute top-4 right-4 text-gray-500 hover:text-gray-800 font-bold text-xl">&times;</button>
+        <button onClick={onClose} className="absolute top-4 right-4 text-gray-500 hover:text-gray-800 font-bold text-xl" aria-label="Close modal">&times;</button>
         <h3 className="text-xl font-bold text-center mb-6 text-gray-800">Claim Verification QR</h3>
         <div className="flex justify-center mb-6">
           <QRCode value={verifyUrl} size={200} />

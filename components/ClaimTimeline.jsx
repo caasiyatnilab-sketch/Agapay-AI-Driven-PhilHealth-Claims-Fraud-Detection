@@ -29,7 +29,7 @@ export default function ClaimTimeline({ claimId }) {
             <div className="text-xs text-slate-500 mt-1">
                {format(new Date(h.createdAt), 'MMM dd, yyyy HH:mm a')} • {h.actor?.name} ({h.actor?.role})
             </div>
-            {h.notes && <div className="mt-2 text-sm text-slate-600 bg-slate-50 p-2 rounded border border-slate-100 italic">"{h.notes}"</div>}
+            {h.notes && <div className="mt-2 text-sm text-slate-600 bg-slate-50 p-2 rounded border border-slate-100 italic">&quot;{h.notes}&quot;</div>}
          </div>
       ))}
     </div>
