@@ -1,8 +1,14 @@
 import { NextResponse } from 'next/server';
 import { getBlockchainContract } from '@/lib/blockchain';
+const { verifyAuth } = require('@/lib/auth');
 
-export async function GET() {
+export async function GET(req) {
   try {
+    const user = verifyAuth(req);
+    if (user.role !== 'AUDITOR') {
+      return NextResponse.json({ error: 'Unauthorized. Auditor access only.' }, { status: 403 });
+    }
+
     const contract = await getBlockchainContract();
     
     if (!contract) {
@@ -41,6 +47,7 @@ export async function GET() {
 
     return NextResponse.json({ status: 'LIVE', events });
   } catch (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const status = error.message.includes('token') ? 401 : 500;
+    return NextResponse.json({ error: error.message }, { status });
   }
 }
