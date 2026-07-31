@@ -17,7 +17,8 @@ export default function HospitalDashboard() {
 
   const fetchClaims = async () => {
     try {
-      const res = await axios.get('/api/claims', { headers: { Authorization: `Bearer ${token}` } });
+      // Use specialized endpoint to reduce network payload and query complexity
+      const res = await axios.get('/api/claims/my-hospital', { headers: { Authorization: `Bearer ${token}` } });
       setClaims(res.data.claims || []);
     } catch (err) {
       toast.error('Failed to load hospital claims');
