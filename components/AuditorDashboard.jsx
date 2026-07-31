@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useContext } from 'react';
+import { useState, useEffect, useContext, useMemo } from 'react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { AuthContext } from './AuthProvider';
@@ -19,9 +19,12 @@ export default function AuditorDashboard() {
 
   const fetchClaims = async () => {
     try {
-      const res = await axios.get('/api/claims', { headers: { Authorization: `Bearer ${token}` } });
-      setClaims(res.data.claims || []);
-      const analyticsRes = await axios.get('/api/analytics/fraud', { headers: { Authorization: `Bearer ${token}` } });
+      // Parallelize API calls to reduce total dashboard loading time
+      const [claimsRes, analyticsRes] = await Promise.all([
+        axios.get('/api/claims', { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get('/api/analytics/fraud', { headers: { Authorization: `Bearer ${token}` } })
+      ]);
+      setClaims(claimsRes.data.claims || []);
       setAnalytics(analyticsRes.data.summary || null);
     } catch (err) {
       toast.error('Failed to load auditor claims');
@@ -55,15 +58,29 @@ export default function AuditorDashboard() {
     }
   };
 
-  const highRisk = claims.filter(c => c.riskScore > 0.7).length;
-  const medRisk = claims.filter(c => c.riskScore > 0.3 && c.riskScore <= 0.7).length;
-  const lowRisk = claims.filter(c => c.riskScore <= 0.3).length;
+  // Optimization: Consolidate multiple O(N) and O(N log N) operations into a single memoized pass
+  const { sortedClaims, stats, pieData } = useMemo(() => {
+    let high = 0, med = 0, low = 0, total = 0;
 
-  const pieData = [
-    { name: 'High Risk', value: highRisk, color: '#ef4444' },
-    { name: 'Medium Risk', value: medRisk, color: '#eab308' },
-    { name: 'Low Risk', value: lowRisk, color: '#22c55e' }
-  ];
+    // Single pass for all counters to avoid multiple .filter() calls
+    claims.forEach(c => {
+      total += (c.amountClaimed || 0);
+      if (c.riskScore > 0.7) high++;
+      else if (c.riskScore > 0.3) med++;
+      else low++;
+    });
+
+    return {
+      // Use slice() to avoid mutating state with sort()
+      sortedClaims: [...claims].sort((a, b) => (b.riskScore || 0) - (a.riskScore || 0)),
+      stats: { high, med, low, total },
+      pieData: [
+        { name: 'High Risk', value: high, color: '#ef4444' },
+        { name: 'Medium Risk', value: med, color: '#eab308' },
+        { name: 'Low Risk', value: low, color: '#22c55e' }
+      ]
+    };
+  }, [claims]);
 
   return (
     <div>
@@ -79,14 +96,14 @@ export default function AuditorDashboard() {
          </div>
          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100 flex flex-col justify-center">
              <h4 className="text-xs text-gray-500 uppercase font-semibold tracking-wider">Total Amount</h4>
-             <p className="text-3xl font-bold text-phBlue mt-2">₱{claims.reduce((acc, c) => acc + c.amountClaimed, 0).toLocaleString()}</p>
+             <p className="text-3xl font-bold text-phBlue mt-2">₱{stats.total.toLocaleString()}</p>
          </div>
          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100 col-span-1 md:col-span-2 flex items-center">
              <div className="w-1/2">
                 <h4 className="text-xs text-gray-500 uppercase font-semibold tracking-wider mb-2">AI Fraud Detection</h4>
-                <div className="flex items-center mt-1"><span className="w-3 h-3 rounded-full bg-red-500 mr-2"></span><span className="text-sm font-medium">{highRisk} High Risk</span></div>
-                <div className="flex items-center mt-1"><span className="w-3 h-3 rounded-full bg-yellow-500 mr-2"></span><span className="text-sm font-medium">{medRisk} Medium Risk</span></div>
-                <div className="flex items-center mt-1"><span className="w-3 h-3 rounded-full bg-green-500 mr-2"></span><span className="text-sm font-medium">{lowRisk} Low Risk</span></div>
+                <div className="flex items-center mt-1"><span className="w-3 h-3 rounded-full bg-red-500 mr-2"></span><span className="text-sm font-medium">{stats.high} High Risk</span></div>
+                <div className="flex items-center mt-1"><span className="w-3 h-3 rounded-full bg-yellow-500 mr-2"></span><span className="text-sm font-medium">{stats.med} Medium Risk</span></div>
+                <div className="flex items-center mt-1"><span className="w-3 h-3 rounded-full bg-green-500 mr-2"></span><span className="text-sm font-medium">{stats.low} Low Risk</span></div>
              </div>
              <div className="w-1/2 h-32">
                 <ResponsiveContainer width="100%" height="100%">
@@ -129,7 +146,7 @@ export default function AuditorDashboard() {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {claims.sort((a,b) => b.riskScore - a.riskScore).map((claim) => (
+            {sortedClaims.map((claim) => (
               <tr key={claim.id} className="hover:bg-gray-50">
                 <td className="px-6 py-4 whitespace-nowrap">
                    <div className="text-sm font-bold text-gray-900">{claim.claimRef}</div>
