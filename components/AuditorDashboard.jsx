@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useContext } from 'react';
+import { useState, useEffect, useContext, useCallback, useMemo } from 'react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { AuthContext } from './AuthProvider';
@@ -12,21 +12,31 @@ export default function AuditorDashboard() {
   const [selectedClaim, setSelectedClaim] = useState(null);
   const [notes, setNotes] = useState('');
   const [analytics, setAnalytics] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  // Memoize fetch function to prevent unnecessary recreations
+  // Performance: Avoids redundant function allocations and dependency triggers
+  const fetchClaims = useCallback(async () => {
+    if (!token) return;
+    setLoading(true);
+    try {
+      // Parallel data fetching reduces total network wait time
+      const [claimsRes, analyticsRes] = await Promise.all([
+        axios.get('/api/claims/all', { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get('/api/analytics/fraud', { headers: { Authorization: `Bearer ${token}` } })
+      ]);
+      setClaims(claimsRes.data.claims || []);
+      setAnalytics(analyticsRes.data.summary || null);
+    } catch (err) {
+      toast.error('Failed to load auditor dashboard data');
+    } finally {
+      setLoading(false);
+    }
+  }, [token]);
 
   useEffect(() => {
     fetchClaims();
-  }, []);
-
-  const fetchClaims = async () => {
-    try {
-      const res = await axios.get('/api/claims', { headers: { Authorization: `Bearer ${token}` } });
-      setClaims(res.data.claims || []);
-      const analyticsRes = await axios.get('/api/analytics/fraud', { headers: { Authorization: `Bearer ${token}` } });
-      setAnalytics(analyticsRes.data.summary || null);
-    } catch (err) {
-      toast.error('Failed to load auditor claims');
-    }
-  };
+  }, [fetchClaims]);
 
   const handleAudit = async (status) => {
     if (!selectedClaim) return;
@@ -55,18 +65,34 @@ export default function AuditorDashboard() {
     }
   };
 
-  const highRisk = claims.filter(c => c.riskScore > 0.7).length;
-  const medRisk = claims.filter(c => c.riskScore > 0.3 && c.riskScore <= 0.7).length;
-  const lowRisk = claims.filter(c => c.riskScore <= 0.3).length;
+  // Memoize statistics to prevent O(N) recalculations on every render
+  const stats = useMemo(() => {
+    let high = 0, med = 0, low = 0, total = 0;
+    for (const c of claims) {
+      total += c.amountClaimed;
+      if (c.riskScore > 0.7) high++;
+      else if (c.riskScore > 0.3) med++;
+      else low++;
+    }
+    return { high, med, low, total };
+  }, [claims]);
 
-  const pieData = [
-    { name: 'High Risk', value: highRisk, color: '#ef4444' },
-    { name: 'Medium Risk', value: medRisk, color: '#eab308' },
-    { name: 'Low Risk', value: lowRisk, color: '#22c55e' }
-  ];
+  const pieData = useMemo(() => [
+    { name: 'High Risk', value: stats.high, color: '#ef4444' },
+    { name: 'Medium Risk', value: stats.med, color: '#eab308' },
+    { name: 'Low Risk', value: stats.low, color: '#22c55e' }
+  ], [stats]);
+
+  if (loading && claims.length === 0) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-phBlue"></div>
+      </div>
+    );
+  }
 
   return (
-    <div>
+    <div className={loading ? 'opacity-50 pointer-events-none transition-opacity' : 'transition-opacity'}>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-gray-800">PhilHealth Auditor Dashboard</h1>
         <button onClick={exportCSV} className="bg-gray-800 text-white px-4 py-2 rounded shadow hover:bg-black text-sm">Download CSV</button>
@@ -79,14 +105,14 @@ export default function AuditorDashboard() {
          </div>
          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100 flex flex-col justify-center">
              <h4 className="text-xs text-gray-500 uppercase font-semibold tracking-wider">Total Amount</h4>
-             <p className="text-3xl font-bold text-phBlue mt-2">₱{claims.reduce((acc, c) => acc + c.amountClaimed, 0).toLocaleString()}</p>
+             <p className="text-3xl font-bold text-phBlue mt-2">₱{stats.total.toLocaleString()}</p>
          </div>
          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100 col-span-1 md:col-span-2 flex items-center">
              <div className="w-1/2">
                 <h4 className="text-xs text-gray-500 uppercase font-semibold tracking-wider mb-2">AI Fraud Detection</h4>
-                <div className="flex items-center mt-1"><span className="w-3 h-3 rounded-full bg-red-500 mr-2"></span><span className="text-sm font-medium">{highRisk} High Risk</span></div>
-                <div className="flex items-center mt-1"><span className="w-3 h-3 rounded-full bg-yellow-500 mr-2"></span><span className="text-sm font-medium">{medRisk} Medium Risk</span></div>
-                <div className="flex items-center mt-1"><span className="w-3 h-3 rounded-full bg-green-500 mr-2"></span><span className="text-sm font-medium">{lowRisk} Low Risk</span></div>
+                <div className="flex items-center mt-1"><span className="w-3 h-3 rounded-full bg-red-500 mr-2"></span><span className="text-sm font-medium">{stats.high} High Risk</span></div>
+                <div className="flex items-center mt-1"><span className="w-3 h-3 rounded-full bg-yellow-500 mr-2"></span><span className="text-sm font-medium">{stats.med} Medium Risk</span></div>
+                <div className="flex items-center mt-1"><span className="w-3 h-3 rounded-full bg-green-500 mr-2"></span><span className="text-sm font-medium">{stats.low} Low Risk</span></div>
              </div>
              <div className="w-1/2 h-32">
                 <ResponsiveContainer width="100%" height="100%">
@@ -129,7 +155,8 @@ export default function AuditorDashboard() {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {claims.sort((a,b) => b.riskScore - a.riskScore).map((claim) => (
+            {/* Note: Claims from /api/claims/all are already server-side sorted by riskScore DESC */}
+            {claims.map((claim) => (
               <tr key={claim.id} className="hover:bg-gray-50">
                 <td className="px-6 py-4 whitespace-nowrap">
                    <div className="text-sm font-bold text-gray-900">{claim.claimRef}</div>
